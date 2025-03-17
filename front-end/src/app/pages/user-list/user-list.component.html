@@ -1,0 +1,35 @@
+<div class="container mt-5">
+    <div class="heading d-flex justify-content-between gap-2 mb-3">
+        <h3>User List</h3>
+        <button class="btn btn-primary" (click)="addUser()">Add User</button>
+    </div>
+    <div>
+        <table class="table b-1">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Created Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            @for (row of userList; track $index) {
+                <tr>
+                    <td>{{row.Name}}</td>
+                    <td>{{row.Email}}</td>
+                    <td>{{row.Phone}}</td>
+                    <td>{{row.CreatedOn}}</td>
+                    <td>
+                        <div class="d-flex justify-content-start gap-2">
+                            <button class="btn btn-success" (click)="generateCV(row.Id)">Generate CV</button>
+                            <button class="btn btn-warning">Edit</button>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

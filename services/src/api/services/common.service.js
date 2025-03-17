@@ -107,28 +107,59 @@ module.exports = {
             currentPage: page,
             totalPages: 0
         };
-
+    
         try {
+            // Get total user count for pagination
+            const [{ totalCount }] = await knex(TABLE_NAME.USER).count('Id as totalCount');
             
-            const [{ totalCount }] = await knex(TABLE_NAME.USER).count('Id as totalCount'); // Get total user count for pagination
-            
-            const result = await knex(TABLE_NAME.USER + ' AS U')
-                .leftJoin(TABLE_NAME.EDUCATION + ' AS E', 'U.Id', 'E.UserId')
-                .leftJoin(TABLE_NAME.WORK_EXPERIENCE + ' AS W', 'U.Id', 'W.UserId')
-                .leftJoin(TABLE_NAME.SKILL + ' AS S', 'U.Id', 'S.UserId')  // Fixed Join Condition
-                .select(
-                    'U.Id', 'U.Name', 'U.Email', 'U.Phone', 'U.Description',
-                    'E.InstitutionName', 'E.CourseName', 'E.StartYear', 'E.EndYear', 'E.Percentage',
-                    'W.WorkTitle', 'W.CompantName', 'W.YearOfExperience', 'W.PositionNumber',
-                    'S.SkillName', 'S.Description as SkillDescription'
-                )
+            // First, get the user base information with pagination
+            const users = await knex(TABLE_NAME.USER)
+                .select('Id', 'Name', 'Email', 'Phone', 'Description', 'CreatedOn')
                 .limit(limit)
                 .offset((page - 1) * limit);
-
+                
+            // Now get related data for each user
+            if (users.length > 0) {
+                // Get all user IDs from the paginated results
+                const userIds = users.map(user => user.Id);
+                
+                // Get all education data for these users
+                const education = await knex(TABLE_NAME.EDUCATION)
+                    .select('*')
+                    .whereIn('UserId', userIds);
+                    
+                // Get all work experience data for these users
+                const workExperience = await knex(TABLE_NAME.WORK_EXPERIENCE)
+                    .select('*')
+                    .whereIn('UserId', userIds);
+                    
+                // Get all skills data for these users
+                const skills = await knex(TABLE_NAME.SKILL)
+                    .select('*')
+                    .whereIn('UserId', userIds);
+                    
+                // Map related data to each user as arrays
+                const result = users.map(user => {
+                    // Find all related records for this user
+                    const userEducation = education.filter(e => e.UserId === user.Id);
+                    const userWorkExp = workExperience.filter(w => w.UserId === user.Id);
+                    const userSkills = skills.filter(s => s.UserId === user.Id);
+                    
+                    // Return user with related data as arrays
+                    return {
+                        ...user,
+                        education: userEducation,
+                        workExperience: userWorkExp,
+                        skills: userSkills
+                    };
+                });
+                
+                resObj.data = result;
+            }
+            
             // Set response object
             resObj.success = true;
             resObj.message = API_RESPONSE_MESSAGES.SUCCESS;
-            resObj.data = result;
             resObj.totalRecords = totalCount;
             resObj.totalPages = Math.ceil(totalCount / limit);
         } 
@@ -139,47 +170,66 @@ module.exports = {
         finally {
             knex.destroy();
         }
-
+    
         return resObj;
     },
+    
     _getUserDetails: async (userId) => {
         const knex = createKnexInstance();
         const resObj = {
             success: false,
             message: '',
-            data: [],
+            data: null, // Changed from array to single object since we're getting details for one user
         };
-
+    
         try {
-
-            const result = await knex(TABLE_NAME.USER + ' AS U')
-                .leftJoin(TABLE_NAME.EDUCATION + ' AS E', 'U.Id', 'E.UserId')
-                .leftJoin(TABLE_NAME.WORK_EXPERIENCE + ' AS W', 'U.Id', 'W.UserId')
-                .leftJoin(TABLE_NAME.SKILL + ' AS S', 'U.Id', 'S.UserId')  // Fixed Join Condition
-                .select(
-                    'U.Id', 'U.Name', 'U.Email', 'U.Phone', 'U.Description',
-                    'E.InstitutionName', 'E.CourseName', 'E.StartYear', 'E.EndYear', 'E.Percentage',
-                    'W.WorkTitle', 'W.CompantName', 'W.YearOfExperience', 'W.PositionNumber',
-                    'S.SkillName', 'S.Description as SkillDescription'
-                )
-                .where('U.Id', userId)
+            // First, get the user base information
+            const user = await knex(TABLE_NAME.USER)
+                .select('Id', 'Name', 'Email', 'Phone', 'Description', 'CreatedOn')
+                .where('Id', userId)
                 .first();
-                console.log(result);
-                
-
+    
+            if (!user) {
+                resObj.message = 'User not found';
+                return resObj;
+            }
+    
+            // Get all education records for this user
+            const education = await knex(TABLE_NAME.EDUCATION)
+                .select('*')
+                .where('UserId', userId);
+    
+            // Get all work experience records for this user
+            const workExperience = await knex(TABLE_NAME.WORK_EXPERIENCE)
+                .select('*')
+                .where('UserId', userId);
+    
+            // Get all skills for this user
+            const skills = await knex(TABLE_NAME.SKILL)
+                .select('*')
+                .where('UserId', userId);
+    
+            // Combine user data with related data arrays
+            const result = {
+                ...user,
+                education: education || [],
+                workExperience: workExperience || [],
+                skills: skills || []
+            };
+    
             // Set response object
             resObj.success = true;
             resObj.message = API_RESPONSE_MESSAGES.SUCCESS;
             resObj.data = result;
         } 
         catch (error) {
-            console.error("Error in _getUserList:", error);
+            console.error("Error in _getUserDetails:", error);
             resObj.message = error.message || API_RESPONSE_MESSAGES.SERVER_ERROR;
         } 
         finally {
             knex.destroy();
         }
-
+    
         return resObj;
     },
     _updateUser: async (userId, data) => {
