@@ -2,7 +2,7 @@ const {
     API_RESPONSE_STATUS_CODE,
     API_RESPONSE_MESSAGES,
   } = require("../common/constant");
-const { _createUser, _getUserList, _getUserDetails } = require("../services/common.service");
+const { _createUser, _getUserList, _getUserDetails, _updateUser } = require("../services/common.service");
 
 module.exports = {
   createUser: async (req, res) => {
@@ -75,6 +75,42 @@ module.exports = {
 
      if(result.success){
      return res.status(200).json({
+          status: API_RESPONSE_STATUS_CODE.SUCCESS,
+          message: result.message,
+          data: result.data,
+        });
+      } else {
+        return res.status(400).json({
+          status: API_RESPONSE_STATUS_CODE.FAILED,
+          message: result.message,
+          data: null,
+        });
+      }
+  },
+  updateUser: async (req, res) => {
+
+    const data = {
+        name: req.body.name,
+        email: req.body.email,
+        phone: req.body.phone,
+        description: req.body.description,
+        education: req.body.education,
+        workExperience: req.body.workExperience,
+        skills: req.body.skills,
+    }
+
+    if (!data.name || !data.email || !data.phone || !data.description || !data.skills ) {
+        return res.status(401).json({
+          status: API_RESPONSE_STATUS_CODE.FAILED,
+          message: API_RESPONSE_MESSAGES.BAD_REQUEST,
+          data: null,
+        });
+    }
+
+    const result = await _updateUser(data);
+
+    if (result.success) {
+        return res.status(200).json({
           status: API_RESPONSE_STATUS_CODE.SUCCESS,
           message: result.message,
           data: result.data,
