@@ -1,0 +1,1 @@
+try start with:  pm2 start ecosystem.dev.config.js //backend
